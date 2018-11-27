@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <mpi.h>
 
 #define MASTER 0
@@ -103,20 +104,33 @@ int main (int argc, char** argv) {
 		if (rank == MASTER) {
 			printf ("Checking %i queens on a %iX%i board\n", dim, dim, dim);
 
-			for (i = 0; i < dim; i++) {
-				buffer = dim;
-				MPI_Send (&buffer, 1, MPI_INT, MASTER, TAG, MPI_COMM_WORLD);
+			// too large of a board, need to split up work
+			if (num_nodes < dim) {
+
+			}
+			// otherwise can just assign one row to each node
+			else {
+				for (i = 0; i < dim; i++) {
+					buffer = dim;
+					MPI_Send (&buffer, 1, MPI_INT, i, TAG, MPI_COMM_WORLD);
+				}
 			}
 		} else {
 			MPI_Recv (&buffer, 1, MPI_INT, MASTER, TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+			char host[25];
+			gethostname(host, 25);
+			printf("Process %s received %i\n", host, buffer);
+			fflush(stdout);
 
 			int* board = (int*) malloc(dim * sizeof(int));
 			board[0] = buffer;
 			
 			solutions += checkRoutes (buffer, 0, board, dim);
+			free (board);
 		}
 	}
 
+	MPI_Barrier(MPI_COMM_WORLD);
 	printf("Number of solutions: %i\n", solutions);
 
 	MPI_Finalize ();
