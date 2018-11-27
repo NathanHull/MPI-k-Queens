@@ -15,15 +15,22 @@ bool checkPos (int row, int col, int board[]) {
 
 	for (i = 0; i < col; i++) {
 		// same row
-		if (board[i] == row)
+		if (board[i] == row) {
 			isValid = false;
+			printf("Same row used %i %i\n", board[i], i);
+		}
 		// forwardslash diagonal
-		else if (board[i] + i == row + col)
+		else if (board[i] + i == row + col) {
 			isValid = false;
+			printf("Forwardslash %i %i\n", board[i], i);
+		}
 		// backslash diagonal
-		else if (board[i] - i == row - col)
+		else if (board[i] - i == row - col) {
 			isValid = false;
+			printf("Backwardslash %i %i\n", board[i], i);
+		}
 	}
+	printf("CHECKED %ix%i is %i\n", col, row, isValid);
 
 	return isValid;
 }
@@ -31,7 +38,7 @@ bool checkPos (int row, int col, int board[]) {
 
 int checkRoutes (int row, int col, int board[], int dim) {
 	// Have reached the end
-	if (col == dim)
+	if (col == dim - 1)
 		return 1;
 
 	int solutions = 0;
@@ -40,7 +47,6 @@ int checkRoutes (int row, int col, int board[], int dim) {
 
 	for (i = 0; i < dim; i++) {
 		if (checkPos (i, nextCol, board)) {
-	printf("Good: row %i, col %i, dim %i\n", row, col, dim);
 		int x;
 		for (x = 0; x < dim; x++) {
 			printf("%i ", board[x]);
@@ -88,11 +94,10 @@ int main (int argc, char** argv) {
 
 	if (num_nodes == 1) {
 		for (i = 0; i < dim; i++) {
-			//int* board = (int*) malloc (sizeof (int) * dim);
-			int board[] = {0, 0, 0, 0, 0, 0, 0, 0};
+			int board[] = {-1, -1, -1, -1, -1, -1, -1, -1};
+			board[0] = i;
 			buffer = i;
 			solutions += checkRoutes (buffer, 0, board, dim);
-			//free (board);
 		}
 	}
 	else {
@@ -104,11 +109,11 @@ int main (int argc, char** argv) {
 			}
 		} else {
 			MPI_Recv (&buffer, 1, MPI_INT, MASTER, TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-			printf("Message from master: %i\n", buffer); 
+
+			int board[] = {-1, -1, -1, -1, -1, -1, -1, -1};
+			board[0] = buffer;
 			
-			int* board = (int*) malloc (sizeof (int) * dim);
-			solutions += checkRoutes (buffer, 0, board, dim);
-			free (board);
+			solutions += checkRoutes (buffer, 1, board, dim);
 		}
 	}
 
