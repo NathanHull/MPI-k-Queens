@@ -1,24 +1,59 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <mpi.h>
-#include <queue>
-#include <iostream>
 
+#define DIM 8
 #define MASTER 0
+#define TAG 0
 
 using namespace std;
 
 
-// Trivially copyable (contiguous in memory) struct
-// so it can be sent via MPI_Send
-struct Partial {
-	int nextCol;
-	int board[];
+bool checkPos (int row, int col, int board[]) {
+	int i;
+	bool isValid = true;
 
-	~Partial() {
-		if (board) delete [] board;
+	for (i = 0; i < col; i++) {
+		// same row
+		if (board[i] == row)
+			isValid = false;
+		// forwardslash diagonal
+		else if (board[i] + i == row + col)
+			isValid = false;
+		// backslash diagonal
+		else if (board[i] - i == row - col)
+			isValid = false;
 	}
-};
+
+	return isValid;
+}
+
+
+int checkRoutes (int row, int col, int board[], int dim) {
+	// Have reached the end
+	if (col == dim)
+		return 1;
+
+	int solutions = 0;
+	int i;
+	int nextCol = col + 1;
+
+	for (i = 0; i < dim; i++) {
+		if (checkPos (i, nextCol, board)) {
+	printf("Good: row %i, col %i, dim %i\n", row, col, dim);
+		int x;
+		for (x = 0; x < dim; x++) {
+			printf("%i ", board[x]);
+		}
+		printf("\n");
+			board[nextCol] = i;
+			solutions += checkRoutes (i, nextCol, board, dim);
+			board[nextCol] = 0;
+		}
+	}
+
+	return solutions;
+}
 
 
 int main (int argc, char** argv) {
@@ -37,6 +72,7 @@ int main (int argc, char** argv) {
 	if (dim < 0) {
 		fprintf (stderr, "Invalid input. Board dim cannot be negative\n");
 	}
+	dim = DIM;
 
 	printf ("Checking %i queens on a %iX%i board\n", numQueens, dim, dim);
 
@@ -47,28 +83,38 @@ int main (int argc, char** argv) {
 	MPI_Comm_rank (MPI_COMM_WORLD, &rank);
 	MPI_Comm_size (MPI_COMM_WORLD, &num_nodes);
 
-	if (rank == MASTER) {
-		queue<Partial> pool;
+	int buffer;
+	int solutions = 0;
+
+	if (num_nodes == 1) {
 		for (i = 0; i < dim; i++) {
-			struct Partial seed;
-			seed.nextCol = 1;
-			seed.board = malloc (sizeof (int) * dim);
-			seed.board[0] = i;
-
-			pool.push (seed);
+			//int* board = (int*) malloc (sizeof (int) * dim);
+			int board[] = {0, 0, 0, 0, 0, 0, 0, 0};
+			buffer = i;
+			solutions += checkRoutes (buffer, 0, board, dim);
+			//free (board);
 		}
-
-		while (!pool.empty()) {
-			
-		}
-	} else {
-
 	}
+	else {
+
+		if (rank == MASTER) {
+			for (i = 0; i < dim; i++) {
+				buffer = dim;
+				MPI_Send (&buffer, 1, MPI_INT, MASTER, TAG, MPI_COMM_WORLD);
+			}
+		} else {
+			MPI_Recv (&buffer, 1, MPI_INT, MASTER, TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+			printf("Message from master: %i\n", buffer); 
+			
+			int* board = (int*) malloc (sizeof (int) * dim);
+			solutions += checkRoutes (buffer, 0, board, dim);
+			free (board);
+		}
+	}
+
+	printf("Number of solutions: %i\n", solutions);
 
 	MPI_Finalize ();
 }
 
 
-bool check (int row, int board[]) {
-	return false;
-}
