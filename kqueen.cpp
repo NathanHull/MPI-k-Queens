@@ -1,18 +1,9 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
 #include <mpi.h>
 
 #define MASTER 0
 #define TAG 0
-
-using namespace std;
-
-
-struct Partial {
-	int nextCol;
-	int board[1];
-};
 
 
 bool checkPos (int row, int col, int board[]) {
@@ -94,8 +85,8 @@ int main (int argc, char** argv) {
 			free (board);
 		}
 		printf("Number of solutions: %i\n", solutions);
-
 	}
+
 
 
 
@@ -103,34 +94,36 @@ int main (int argc, char** argv) {
 	else {
 		// too large of a board, need to split up work
 		if (num_nodes < dim) {
-
+			for (i = 0; i < dim; i++) {
+				if (i % num_nodes == rank) {
+					int* board = (int*) malloc(dim * sizeof(int));
+					board[0] = i;
+					solutions += checkRoutes (i, 0, board, dim);
+					free (board);
+				}
+			}
 		}
 		// otherwise can just assign one row to each node
 		else {
-			if (rank < dim) {
-				char host[25];
-				gethostname(host, 25);
-				printf("Host %s checking %i\n", host, rank);
-				int* board = (int*) malloc(dim * sizeof(int));
-				board[0] = rank;
-				solutions = checkRoutes (rank, 0, board, dim);
-				free (board);
-			}
+			int* board = (int*) malloc(dim * sizeof(int));
+			board[0] = rank;
+			solutions = checkRoutes (rank, 0, board, dim);
+			free (board);
 		}
-		
+
+		// reduce
 		if (rank == MASTER) {
-			for (i = 1; i < dim; i++) {
+			printf ("Checking %i queens on a %iX%i board\n", dim, dim, dim);
+			for (i = 1; i < num_nodes; i++) {
 				MPI_Recv (&buffer, 1, MPI_INT, i, TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 				solutions += buffer;
 			}
-			printf ("Checking %i queens on a %iX%i board\n", dim, dim, dim);
 			printf("Number of solutions: %i\n", solutions);
 
 		} else {
 			MPI_Send (&solutions, 1, MPI_INT, MASTER, TAG, MPI_COMM_WORLD);
 		}
 	}
-
 
 	MPI_Finalize ();
 }
