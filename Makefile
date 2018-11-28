@@ -1,4 +1,5 @@
 k=8
+np=4
 
 all: kqueen.cpp
 	mpic++ kqueen.cpp -o exe
@@ -10,7 +11,7 @@ mp: kqueen.cpp
 
 mp1: kqueen.cpp
 	mpic++ kqueen.cpp -o exe
-	mpirun -np 6 -H arch03,arch04,arch05,arch06,arch07,arch08 ./exe 8
+	time mpirun -np 1 -H arch01,arch02,arch03,arch04,arch05,arch06,arch07,arch08 ./exe 15
 
 big: kqueen.cpp
 	mpic++ kqueen.cpp -o exe
